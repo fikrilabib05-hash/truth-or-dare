@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#667eea">
+    <title>Truth or Dare - Multiplayer</title>
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.0/dist/peerjs.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 15px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .screen {
+            display: none;
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: fadeIn 0.3s;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(1080deg); }
+        }
+
+        h1, h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+
+        h1 {
+            font-size: 2.2em;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-truth {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .btn-dare {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 14px;
+            margin: 10px 0;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 15px;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .mode-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .mode-card {
+            padding: 25px 15px;
+            border: 3px solid #ddd;
+            border-radius: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .mode-card.selected {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .mode-card .emoji {
+            font-size: 3em;
+            margin-bottom: 8px;
+        }
+
+        .players-list {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 15px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .player-item {
+            padding: 12px;
+            margin: 8px 0;
+            background: white;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .player-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .player-badge {
+            background: #4caf50;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: 600;
+        }
+
+        .wheel {
+            width: 180px;
+            height: 180px;
+            margin: 25px auto;
+            border-radius: 50%;
+            border: 8px solid #667eea;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .wheel.spinning {
+            animation: spin 2s ease-out;
+        }
+
+        .question-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            margin: 20px 0;
+            color: white;
+            font-size: 1.15em;
+            line-height: 1.7;
+            min-height: 140px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .info-box {
+            background: #e8f4f8;
+            padding: 15px;
+            border-radius: 12px;
+            margin: 15px 0;
+            border-left: 4px solid #667eea;
+        }
+
+        .room-code {
+            font-size: 2em;
+            font-weight: bold;
+            text-align: center;
+            color: #667eea;
+            letter-spacing: 6px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            padding: 18px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2.2em;
+            font-weight: bold;
+            color: #667eea;
+            margin-top: 5px;
+        }
+
+        .add-section {
+            background: #f8f9fa;
+            padding: 18px;
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-left: 8px;
+        }
+
+        .status-online {
+            background: #4caf50;
+            box-shadow: 0 0 5px #4caf50;
+        }
+
+        .status-connecting {
+            background: #ff9800;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .copy-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .alert {
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+            text-align: center;
+            font-size: 0.9em;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .alert-info {
+            background: #cce5ff;
+            color: #004085;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Home Screen -->
+        <div id="homeScreen" class="screen active">
+            <h1>🎭 Truth or Dare</h1>
+            <p style="text-align: center; margin-bottom: 25px; color: #666; line-height: 1.6;">
+                Multiplayer Online - Main dari jarak jauh!
+            </p>
+            <button class="btn btn-primary" onclick="app.showCreateRoom()">🎮 Buat Room Baru</button>
+            <button class="btn btn-secondary" onclick="app.showJoinRoom()">🚪 Join Room</button>
+        </div>
+
+        <!-- Create Room Screen -->
+        <div id="createRoomScreen" class="screen">
+            <h2>Buat Room Baru</h2>
+            
+            <div class="mode-selector">
+                <div class="mode-card selected" onclick="app.selectMode('teman')" id="modeTeman">
+                    <div class="emoji">👥</div>
+                    <h3>Teman</h3>
+                    <p style="color: #666;">Main bareng teman</p>
+                </div>
+                <div class="mode-card" onclick="app.selectMode('pasangan')" id="modePasangan">
+                    <div class="emoji">💑</div>
+                    <h3>Pasangan</h3>
+                    <p style="color: #666;">Untuk couples</p>
+                </div>
+            </div>
+
+            <input type="text" id="hostName" placeholder="Nama kamu" maxlength="20">
+            <button class="btn btn-primary" onclick="app.createRoom()">✨ Buat Room</button>
+            <button class="btn btn-secondary" onclick="app.showHome()">← Kembali</button>
+        </div>
+
+        <!-- Join Room Screen -->
+        <div id="joinRoomScreen" class="screen">
+            <h2>Join Room</h2>
+            <input type="text" id="roomCodeInput" placeholder="Masukkan Room ID" style="text-transform: uppercase;">
+            <input type="text" id="joinName" placeholder="Nama kamu" maxlength="20">
+            <button class="btn btn-primary" onclick="app.joinRoom()">🚀 Join</button>
+            <button class="btn btn-secondary" onclick="app.showHome()">← Kembali</button>
+        </div>
+
+        <!-- Lobby Screen -->
+        <div id="lobbyScreen" class="screen">
+            <h2>Room Lobby</h2>
+            
+            <div class="info-box">
+                <p style="margin-bottom: 5px;"><strong>Room ID:</strong></p>
+                <div class="room-code" id="roomIdDisplay"></div>
+                <button class="copy-btn" onclick="app.copyRoomId()">📋 Copy Room ID</button>
+                <p style="text-align: center; color: #666; font-size: 0.9em; margin-top: 10px;">
+                    Share ID ini ke teman-temanmu!
+                </p>
+            </div>
+
+            <div class="info-box">
+                <p>
+                    <strong>Mode:</strong> <span id="gameModeDisplay"></span>
+                    <span class="status-indicator status-online"></span>
+                </p>
+                <p style="margin-top: 8px; font-size: 0.9em; color: #666;">
+                    <strong>Host:</strong> <span id="hostNameDisplay"></span>
+                </p>
+            </div>
+
+            <h3 style="margin-top: 20px; color: #333;">👥 Pemain (<span id="playerCount">0</span>)</h3>
+            <div class="players-list" id="playersListLobby"></div>
+
+            <div class="add-section" id="hostControls" style="display: none;">
+                <h3 style="color: #333; margin-bottom: 10px;">➕ Tambah Pertanyaan Custom</h3>
+                <select id="questionType">
+                    <option value="truth">💬 Truth</option>
+                    <option value="dare">🎯 Dare</option>
+                </select>
+                <textarea id="customQuestion" placeholder="Tulis pertanyaan/tantangan..."></textarea>
+                <button class="btn btn-secondary" onclick="app.addCustomQuestion()">Tambah</button>
+            </div>
+
+            <button class="btn btn-primary" id="startGameBtn" onclick="app.startGame()" style="display: none;">🎮 Mulai Game</button>
+            <button class="btn btn-secondary" onclick="app.leaveRoom()">🚪 Keluar</button>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="gameScreen" class="screen">
+            <h2>🎮 Let's Play!</h2>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <div style="color: #666; font-size: 0.9em;">💬 Truth Tersisa</div>
+                    <div class="stat-value" id="truthCount">50</div>
+                </div>
+                <div class="stat-card">
+                    <div style="color: #666; font-size: 0.9em;">🎯 Dare Tersisa</div>
+                    <div class="stat-value" id="dareCount">50</div>
+                </div>
+            </div>
+
+            <div id="spinSection">
+                <p style="text-align: center; color: #666; margin: 20px 0;">
+                    Siapa yang akan bermain?
+                </p>
+                <button class="btn btn-primary" onclick="app.spinWheel()" id="spinBtn">🎡 Putar Roda</button>
+            </div>
+
+            <div id="selectedPlayerSection" style="display: none;">
+                <div class="wheel" id="wheelResult"></div>
+                <p style="text-align: center; color: #666; margin: 20px 0; font-weight: 500;">
+                    <span id="selectedPlayerName"></span>, pilih Truth atau Dare? 🤔
+                </p>
+                <div id="choiceButtons">
+                    <button class="btn btn-truth" onclick="app.selectTruth()">💬 Truth</button>
+                    <button class="btn btn-dare" onclick="app.selectDare()">🎯 Dare</button>
+                </div>
+            </div>
+
+            <div id="questionSection" style="display: none;">
+                <div class="question-card" id="questionDisplay"></div>
+                <button class="btn btn-primary" onclick="app.nextRound()" id="nextBtn">⏭️ Lanjut</button>
+            </div>
+
+            <button class="btn btn-secondary" onclick="app.backToLobby()">🏠 Back to Lobby</button>
+        </div>
+    </div>
+
+    <script>
+        const DEFAULT_QUESTIONS = {
+            pasangan: {
+                truth: ['Apa hal yang paling kamu sukai dari pasanganmu?','Kapan pertama kali kamu merasa jatuh cinta?','Apa rahasia yang belum pernah kamu ceritakan?','Apa mimpi terbesar kamu tentang hubungan kalian?','Siapa yang lebih dulu jatuh cinta?','Apa hal paling romantis yang pernah dilakukan?','Apa yang membuatmu tertarik pertama kali?','Apa kenangan paling berkesan?','Apa hal yang ingin kamu ubah dari dirimu?','Apa yang paling kamu rindukan saat jauh?','Apa yang membuatmu yakin dia adalah orangnya?','Apa hal termanis yang pernah dilakukan?','Apa harapanmu untuk 5 tahun ke depan?','Apa yang membuat kamu paling bahagia?','Apa kebiasaan pasanganmu yang paling kamu suka?','Apa lagu yang mengingatkanmu?','Kapan kamu merasa paling dicintai?','Apa hal yang ingin kamu lakukan bersama?','Apa makanan favorit yang sering kalian makan?','Apa momen paling lucu?','Apa yang pertama kali kamu pikirkan saat bangun?','Apa hadiah paling berkesan?','Apa tempat favorit kalian?','Apa film/drama yang ingin ditonton bersama?','Apa yang membuat kamu bangga memiliki pasanganmu?','Apa panggilan sayang favorit?','Kapan terakhir kali merasa super romantis?','Apa hal kecil yang bikin hatimu meleleh?','Apa rencana date impian?','Apa moment paling awkward?','Apa yang paling kamu apresiasi?','Kapan kamu tahu dia orang spesial?','Apa tradisi couple favorit?','Apa yang membuat relationship kalian berbeda?','Apa quote yang menggambarkan hubungan?','Apa goals terbesar sebagai couple?','Kapan merasa paling dekat?','Apa yang paling sering didebatkan?','Apa inside joke favorit?','Bagaimana cara cheering you up?','Apa playlist couple favorit?','Kapan moment paling bangga?','Apa yang ingin diceritakan ke dunia?','Apa warna yang mengingatkanmu?','Apa adventure yang ingin dilakukan?','Bagaimana perasaan di first date?','Apa yang paling disyukuri?','Kapan time flies saat bersama?','Apa comfort food favorit?','Bagaimana cara merayakan anniversary?'],
+                dare: ['Kirim voice note "I love you" dengan suara imut','Kirim foto selfie paling jelek','Video call 1 menit sambil menatap mata','Nyanyikan lagu romantis','Tulis puisi pendek dan kirim','Kirim 10 emoji hati','Buat status WhatsApp tentang pasanganmu','Screenshot chat terakhir','Telepon dan bilang "kangen"','Kirim foto makanan favorit pasanganmu','Buat video lip sync lagu cinta','Kirim meme lucu tentang hubungan','Post foto dengan caption romantis','Kirim voice note nyanyi lagu tema','Buat daftar 5 hal yang kamu cintai','Screenshot playlist lagu','Tunjukkan dance move terbaikmu','Kirim foto outfit favorit','Tulis rencana date ideal','Kirim foto tempat pertama bertemu','Buat nickname lucu','Screenshot chat tersweetest','Kirim foto couple goals','Buat wajah lucu 30 detik','Kirim playlist 5 lagu','Tulis surat cinta singkat','Buat poem tentang first date','Kirim voice note berbisik sweet','Post couple selfie terbaik','Kirim GIF romantic','Bilang 3 alasan kenapa sayang dia','Kirim emoji yang menggambarkan pasangan','Buat story dedicated','Screenshot moment manis','Kirim foto date spot favorit','Nyanyi lagu couple goals','Tulis bucket list couple','Kirim voice note ketawa bareng','Post throwback foto couple','Kirim meme relate relationship','Show hal favorit di kamar','Screenshot lagu on repeat','Buat TikTok couple dance','Tulis rap tentang pasangan','Kirim foto moment termahal','Bilang compliment 5x cepat','Post appreciation','Screenshot chat pertama','Kirim virtual hug','Kasih flying kiss']
+            },
+            teman: {
+                truth: ['Siapa crush rahasia kamu?','Apa hal paling memalukan?','Siapa teman yang paling sering digosipkan?','Apa kebohongan terbesar?','Siapa orang terakhir yang di-stalk?','Apa rahasia yang ga boleh ortu tahu?','Apa hal yang paling disesali?','Siapa mantan yang masih dipikirin?','Apa hal paling gila yang pernah dilakukan?','Siapa di grup ini yang paling menarik?','Apa aplikasi paling sering dibuka?','Berapa lama bisa tahan ga main HP?','Apa chat paling memalukan?','Siapa kontak terakhir yang di-chat?','Apa mimpi paling aneh?','Siapa yang paling sering di-chat?','Apa ketakutan terbesar?','Siapa idola rahasia?','Apa hobi yang ga ada yang tahu?','Berapa kali pernah ditolak?','Apa hal paling childish yang masih dilakukan?','Siapa yang paling ingin diajak jalan?','Apa lagu yang lagi on repeat?','Berapa lama screen time hari ini?','Apa rencana masa depan yang belum diceritakan?','Kapan terakhir nangis?','Apa guilty pleasure favorit?','Siapa celebrity crush?','Apa hal paling impulsive yang dibeli?','Berapa lama bisa survive tanpa internet?','Apa red flag terbesar dalam diri?','Siapa orang yang paling diiri?','Apa biggest insecurity?','Kapan terakhir bohong?','Apa yang paling ditakutkan orang lain tahu?','Siapa ex yang masih follow sosmed?','Apa DM paling awkward?','Berapa banyak unread message sekarang?','Apa kebiasaan buruk yang susah hilang?','Siapa yang pernah nge-ghost?','Apa hal paling embarrassing di browser?','Kapan terakhir stalk mantan?','Apa pickup line terjelek?','Siapa yang secretly di-jealous?','Apa moment paling cringe?','Berapa follower fake di IG?','Apa yang bikin insecure ketemu orang baru?','Siapa yang sering muncul di FYP?','Apa alasan terbodoh cancel rencana?','Kapan terakhir merasa super awkward?'],
+                dare: ['Post status "Lagi bosen, ada yang mau ngobrol?"','Telepon crush bilang "lagi apa?"','Kirim "hai kangen" ke 3 kontak random','Screenshot riwayat pencarian','Ubah foto profil dengan foto aneh','Kirim voice note nyanyi dangdut','Post story dengan filter jelek','Spam 20 emoji ke grup keluarga','Chat orang jarang diajak','Buat TikTok dance dan post','Telepon random contact tanya "siapa ini?"','Kirim meme random ke 5 orang','Screenshot chat terakhir','Ganti username jadi nama aneh 1 hari','Kirim "miss you" ke kontak ke-5','Post foto selfie paling jelek','Buat status tentang bucket list','Telepon teman nyanyi ulang tahun','Kirim audio ketawa ke grup','Screenshot aplikasi paling sering dibuka','Post quote cringy','Kirim GIF lucu ke 5 orang','Ubah bio jadi pantun gombal','Video call sambil joget 30 detik','Screenshot playlist favorit','Kirim voice note dengan aksen aneh','Post throwback foto awkward','Chat "aku suka kamu" ke random','Buat poll random di story','Kirim voice note nyanyi lagu anak','Post selfie tanpa filter','Screenshot riwayat YouTube','Kirim "good morning" ke semua grup','Buat status dengan 20 emoji','Video call ortu bilang "i love you"','Post foto makanan terakhir','Kirim voice note dengan suara robot','Screenshot notifikasi HP','Post story "ask me anything"','Kirim meme relate ke grup','Ganti ringtone jadi lagu embarassing','Show isi tas/dompet','Post foto OOTD terjelek','Kirim voice note beatbox 15 detik','Screenshot widget HP','Post lockscreen dan homescreen','Kirim "hello" ke semua DM unread','Buat reel lip sync trending','Screenshot screen time','Post appreciation untuk sahabat']
+            }
+        };
+
+        const app = {
+            peer: null,
+            conn: null,
+            connections: [],
+            isHost: false,
+            myPeerId: null,
+            selectedMode: 'teman',
+            playerName: '',
+            gameState: {
+                mode: 'teman',
+                host: '',
+                players: [],
+                questions: { truth: [], dare: [] },
+                usedQuestions: { truth: [], dare: [] },
+                currentPlayer: null,
+                isGameStarted: false
+            },
+
+            init() {
+                this.peer = new Peer();
+                
+                this.peer.on('open', (id) => {
+                    this.myPeerId = id;
+                    console.log('My peer ID:', id);
+                });
+
+                this.peer.on('connection', (conn) => {
+                    this.handleConnection(conn);
+                });
+
+                this.peer.on('error', (err) => {
+                    console.error('PeerJS error:', err);
+                    alert('❌ Koneksi error: ' + err.message);
+                });
+            },
+
+            handleConnection(conn) {
+                this.connections.push(conn);
+                
+                conn.on('data', (data) => {
+                    this.handleData(data, conn);
+                });
+
+                conn.on('close', () => {
+                    const index = this.connections.indexOf(conn);
+                    if (index > -1) {
+                        this.connections.splice(index, 1);
+                    }
+                    
+                    if (this.isHost) {
+                        this.gameState.players = this.gameState.players.filter(p => p.peerId !== conn.peer);
+                        this.broadcastGameState();
+                    }
+                });
+
+                // Send current game state to new connection
+                if (this.isHost) {
+                    conn.send({ type: 'gameState', data: this.gameState });
+                }
+            },
+
+            handleData(data, conn) {
+                switch(data.type) {
+                    case 'join':
+                        if (this.isHost) {
+                            const player = { name: data.name, peerId: conn.peer };
+                            this.gameState.players.push(player);
+                            this.broadcastGameState();
+                        }
+                        break;
+                    
+                    case 'gameState':
+                        this.gameState = data.data;
+                        this.updateUI();
+                        break;
+                    
+                    case 'addQuestion':
+                        if (this.isHost) {
+                            this.gameState.questions[data.qtype].push(data.question);
+                            this.broadcastGameState();
+                        }
+                        break;
+                    
+                    case 'startGame':
+                        this.gameState.isGameStarted = true;
+                        this.updateUI();
+                        this.showScreen('gameScreen');
+                        break;
+                    
+                    case 'spin':
+                        if (this.isHost) {
+                            this.performSpin();
+                        }
+                        break;
+                    
+                    case 'selectQuestion':
+                        if (this.isHost) {
+                            this.performGetQuestion(data.qtype);
+                        }
+                        break;
+                    
+                    case 'nextRound':
+                        this.resetRound();
+                        break;
+                }
+            },
+
+            broadcastGameState() {
+                const message = { type: 'gameState', data: this.gameState };
+                this.connections.forEach(conn => {
+                    if (conn.open) {
+                        conn.send(message);
+                    }
+                });
+                this.updateUI();
+            },
+
+            broadcast(message) {
+                this.connections.forEach(conn => {
+                    if (conn.open) {
+                        conn.send(message);
+                    }
+                });
+            },
+
+            showScreen(screenId) {
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                document.getElementById(screenId).classList.add('active');
+            },
+
+            showHome() {
+                this.showScreen('homeScreen');
+            },
+
+            showCreateRoom() {
+                this.showScreen('createRoomScreen');
+            },
+
+            showJoinRoom() {
+                this.showScreen('joinRoomScreen');
+            },
+
+            selectMode(mode) {
+                this.selectedMode = mode;
+                document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+                document.getElementById(`mode${mode.charAt(0).toUpperCase() + mode.slice(1)}`).classList.add('selected');
+            },
+
+            createRoom() {
+                const name = document.getElementById('hostName').value.trim();
+                if (!name) {
+                    alert('❌ Masukkan nama kamu!');
+                    return;
+                }
+
+                this.isHost = true;
+                this.playerName = name;
+                this.gameState = {
+                    mode: this.selectedMode,
+                    host: name,
+                    players: [{ name: name, peerId: this.myPeerId }],
+                    questions: {
+                        truth: [...DEFAULT_QUESTIONS[this.selectedMode].truth],
+                        dare: [...DEFAULT_QUESTIONS[this.selectedMode].dare]
+                    },
+                    usedQuestions: { truth: [], dare: [] },
+                    currentPlayer: null,
+                    isGameStarted: false
+                };
+
+                this.updateUI();
+                this.showScreen('lobbyScreen');
+            },
+
+            joinRoom() {
+                const roomId = document.getElementById('roomCodeInput').value.trim();
+                const name = document.getElementById('joinName').value.trim();
+
+                if (!roomId || !name) {
+                    alert('❌ Isi semua field!');
+                    return;
+                }
+
+                this.playerName = name;
+                this.conn = this.peer.connect(roomId);
+
+                this.conn.on('open', () => {
+                    this.conn.send({ type: 'join', name: name });
+                    this.handleConnection(this.conn);
+                    this.showScreen('lobbyScreen');
+                });
+
+                this.conn.on('error', (err) => {
+                    alert('❌ Gagal join room: ' + err.message);
+                });
+            },
+
+            updateUI() {
+                // Update room ID
+                if (this.myPeerId) {
+                    document.getElementById('roomIdDisplay').textContent = this.myPeerId;
+                }
+
+                // Update mode
+                const modeText = this.gameState.mode === 'pasangan' ? '💑 Pasangan' : '👥 Teman';
+                document.getElementById('gameModeDisplay').textContent = modeText;
+                document.getElementById('hostNameDisplay').textContent = this.gameState.host;
+
+                // Update players list
+                const playersList = document.getElementById('playersListLobby');
+                playersList.innerHTML = '';
+                document.getElementById('playerCount').textContent = this.gameState.players.length;
+
+                this.gameState.players.forEach(player => {
+                    const div = document.createElement('div');
+                    div.className = 'player-item';
+                    const isHost = player.name === this.gameState.host;
+                    div.innerHTML = `
+                        <div class="player-avatar">${player.name.charAt(0).toUpperCase()}</div>
+                        <div style="flex: 1;">
+                            <strong>${player.name}</strong>
+                            ${isHost ? '<span class="player-badge">HOST</span>' : ''}
+                        </div>
+                    `;
+                    playersList.appendChild(div);
+                });
+
+                // Show host controls
+                if (this.isHost) {
+                    document.getElementById('hostControls').style.display = 'block';
+                    document.getElementById('startGameBtn').style.display = 'block';
+                }
+
+                // Update question counts
+                document.getElementById('truthCount').textContent = this.gameState.questions.truth.length;
+                document.getElementById('dareCount').textContent = this.gameState.questions.dare.length;
+            },
+
+            copyRoomId() {
+                const roomId = this.myPeerId || document.getElementById('roomIdDisplay').textContent;
+                
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(roomId).then(() => {
+                        alert('✅ Room ID berhasil di-copy!');
+                    });
+                } else {
+                    // Fallback untuk browser yang tidak support clipboard API
+                    const textArea = document.createElement('textarea');
+                    textArea.value = roomId;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    alert('✅ Room ID berhasil di-copy!');
+                }
+            },
+
+            addCustomQuestion() {
+                const type = document.getElementById('questionType').value;
+                const question = document.getElementById('customQuestion').value.trim();
+
+                if (!question) {
+                    alert('❌ Tulis pertanyaan atau tantangan!');
+                    return;
+                }
+
+                if (this.isHost) {
+                    this.gameState.questions[type].push(question);
+                    this.broadcastGameState();
+                } else {
+                    this.conn.send({ type: 'addQuestion', qtype: type, question: question });
+                }
+
+                document.getElementById('customQuestion').value = '';
+                alert('✅ Pertanyaan ditambahkan!');
+            },
+
+            startGame() {
+                if (this.gameState.players.length < 2) {
+                    alert('❌ Minimal 2 pemain untuk mulai!');
+                    return;
+                }
+
+                this.gameState.isGameStarted = true;
+                
+                if (this.isHost) {
+                    this.broadcast({ type: 'startGame' });
+                }
+
+                this.showScreen('gameScreen');
+            },
+
+            spinWheel() {
+                if (this.isHost) {
+                    this.performSpin();
+                } else {
+                    this.conn.send({ type: 'spin' });
+                }
+            },
+
+            performSpin() {
+                if (this.gameState.players.length === 0) return;
+
+                const selected = this.gameState.players[Math.floor(Math.random() * this.gameState.players.length)];
+                this.gameState.currentPlayer = selected.name;
+
+                const wheel = document.getElementById('wheelResult');
+                wheel.textContent = '???';
+                wheel.classList.add('spinning');
+
+                setTimeout(() => {
+                    wheel.textContent = selected.name;
+                    wheel.classList.remove('spinning');
+                    document.getElementById('spinSection').style.display = 'none';
+                    document.getElementById('selectedPlayerSection').style.display = 'block';
+                    document.getElementById('questionSection').style.display = 'none';
+                    document.getElementById('selectedPlayerName').textContent = selected.name;
+
+                    // Hanya pemain yang terpilih yang bisa pilih
+                    if (selected.name === this.playerName) {
+                        document.getElementById('choiceButtons').style.display = 'block';
+                    } else {
+                        document.getElementById('choiceButtons').style.display = 'none';
+                    }
+
+                    this.broadcastGameState();
+                }, 2000);
+            },
+
+            selectTruth() {
+                if (this.isHost) {
+                    this.performGetQuestion('truth');
+                } else {
+                    this.conn.send({ type: 'selectQuestion', qtype: 'truth' });
+                }
+            },
+
+            selectDare() {
+                if (this.isHost) {
+                    this.performGetQuestion('dare');
+                } else {
+                    this.conn.send({ type: 'selectQuestion', qtype: 'dare' });
+                }
+            },
+
+            performGetQuestion(type) {
+                if (this.gameState.questions[type].length === 0) {
+                    alert(`❌ Semua pertanyaan ${type} sudah habis!`);
+                    return;
+                }
+
+                const randomIndex = Math.floor(Math.random() * this.gameState.questions[type].length);
+                const question = this.gameState.questions[type][randomIndex];
+
+                this.gameState.questions[type].splice(randomIndex, 1);
+                this.gameState.usedQuestions[type].push(question);
+
+                document.getElementById('questionDisplay').textContent = question;
+                document.getElementById('selectedPlayerSection').style.display = 'none';
+                document.getElementById('questionSection').style.display = 'block';
+
+                // Hanya host yang bisa next
+                if (this.isHost) {
+                    document.getElementById('nextBtn').style.display = 'block';
+                } else {
+                    document.getElementById('nextBtn').style.display = 'none';
+                }
+
+                this.broadcastGameState();
+            },
+
+            nextRound() {
+                if (this.isHost) {
+                    this.broadcast({ type: 'nextRound' });
+                }
+                this.resetRound();
+            },
+
+            resetRound() {
+                document.getElementById('spinSection').style.display = 'block';
+                document.getElementById('selectedPlayerSection').style.display = 'none';
+                document.getElementById('questionSection').style.display = 'none';
+                this.gameState.currentPlayer = null;
+            },
+
+            backToLobby() {
+                this.showScreen('lobbyScreen');
+            },
+
+            leaveRoom() {
+                if (confirm('❓ Yakin ingin keluar dari room?')) {
+                    if (this.conn) {
+                        this.conn.close();
+                    }
+                    this.connections.forEach(conn => conn.close());
+                    this.connections = [];
+                    this.gameState = {
+                        mode: 'teman',
+                        host: '',
+                        players: [],
+                        questions: { truth: [], dare: [] },
+                        usedQuestions: { truth: [], dare: [] },
+                        currentPlayer: null,
+                        isGameStarted: false
+                    };
+                    this.isHost = false;
+                    this.showHome();
+                }
+            }
+        };
+
+        // Initialize app
+        window.addEventListener('DOMContentLoaded', () => {
+            app.init();
+            app.selectMode('teman');
+        });
+    </script>
+</body>
+</html>
